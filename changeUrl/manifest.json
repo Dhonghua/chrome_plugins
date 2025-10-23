@@ -3,6 +3,7 @@
     "name": "changeUrl",
     "version": "1.6",
     "description": "读取剪贴板替换URL域名",
+    "incognito": "split",
     "permissions": ["tabs"],
     "background": {
       "service_worker": "background.js",
