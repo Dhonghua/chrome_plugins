@@ -17,6 +17,7 @@ chrome.action.onClicked.addListener(async () => {
     // 使用 URL 对象方便解析域名、路径等信息
     const currentUrl = new URL(tab.url);
     const currentDomain = currentUrl.hostname; // 提取当前页面域名（hostname）
+    const currentPath =  currentUrl.pathname + currentUrl.search + currentUrl.hash; //提取当前页面路径（pathname + search + hash）
   
     // 2️⃣ 打开桥接页（clipboard.html）
     // bridge 页的作用是负责安全地调用 navigator.clipboard.readText()
@@ -37,6 +38,7 @@ chrome.action.onClicked.addListener(async () => {
         chrome.tabs.sendMessage(bridgeTab.id, {
           type: "getClipboard",
           currentDomain,
+          currentPath,
         });
       }
     });
@@ -51,27 +53,39 @@ chrome.action.onClicked.addListener(async () => {
     if (msg.type !== "clipboardData") return;
     // 从消息中提取当前页面域名
     const currentDomain = msg.currentDomain;
-    // 从消息中提取文本内容，按换行符拆分，多条 URL 或路径
+    const currentPath = msg.currentPath;
+    const currentKnown = isKnownDomain(currentDomain)
+    // 从消息中提取剪切板文本内容，按换行符拆分，多条 URL 或路径
     const lines = msg.text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
     // 用于存储处理后的 URL
     const processedUrls = [];
     const errUrls = [];
     for (const line of lines) {
         // 每条URL或路径，单独处理
-        const clipText = line;
-    
+        let clipUrlObj = null;
+        let clipDomain = null;
+        let clipPath = "";
+
         // 尝试将剪贴板内容解析为 URL
         // 如果无效（非 URL），则弹窗提示并中止
-        let clipUrlObj;
-        let clipDomain;
-        let clipPath;
+
+        // 给裸域名补 https://
+        // const clipText = line.includes("://") ? line : `https://${line}`;
+        const clipText = line
+        // 判断是否为URL
         if (isUrl(clipText)){
             clipUrlObj = new URL(clipText);
-            // 提取剪贴板 URL 的域名与路径部分
-            clipDomain = clipUrlObj.hostname;
-            clipPath = clipUrlObj.pathname + clipUrlObj.search + clipUrlObj.hash;
-        } else {
-            if (isPurePath(clipText)){
+            // 判断是否仅域名（没有路径、查询、哈希）
+            if (clipUrlObj.pathname === "/" && clipUrlObj.search === "" && clipUrlObj.hash === ""){
+                clipDomain = clipUrlObj.hostname;
+                clipPath = ""; // 仅域名，path 为空
+            }else {
+                // 提取剪贴板 URL 的域名与路径部分
+                clipDomain = clipUrlObj.hostname;  //剪贴板 URL域名
+                clipPath = clipUrlObj.pathname + clipUrlObj.search + clipUrlObj.hash; //剪贴板 URL路径
+            }
+        }else if (isPurePath(clipText)){
+                // 仅路径
                 clipDomain = null;
                 clipPath = clipText;
             }else {
@@ -80,18 +94,27 @@ chrome.action.onClicked.addListener(async () => {
                 continue;
             }
 
-        }
+        
     
         // =========================================================
         // ✨ 构造最终跳转 URL
         // =========================================================
         // 使用原始协议 + 新域名 + 路径参数
-        // const targetUrl = `${clipUrlObj.protocol}//${targetDomain}${clipPath}`;
-        const targetDomain = getTargetDomain(currentDomain, clipDomain);
-        const targetUrl = `https://${targetDomain}${clipPath}`;
-        processedUrls.push(targetUrl);
-        // 控制台打印以便调试
-        console.log("跳转到:", targetUrl);
+        // const targetDomain = getTargetDomain(currentDomain, clipDomain);
+        // const targetUrl = `https://${targetDomain}${clipPath}`;
+        // processedUrls.push(targetUrl);
+
+        const targetUrl = buildTargetUrl({ currentDomain,currentPath, clipDomain, clipPath ,currentKnown});
+
+        if (targetUrl) {
+            processedUrls.push(targetUrl);
+            // 控制台打印以便调试
+            console.log("跳转到:", targetUrl);
+        }else {
+            console.log("剪贴板不是有效 URL或纯路径")
+            errUrls.push(clipText);
+            continue;
+        }
     
         // 在当前 bridge 标签页中直接更新 URL，实现无感跳转
         // chrome.tabs.update(sender.tab.id, { url: targetUrl });
@@ -101,8 +124,8 @@ chrome.action.onClicked.addListener(async () => {
         if (lines.length <= 10) {
             chrome.tabs.create({ url: targetUrl });
         }
-        
     }
+    
     chrome.tabs.sendMessage(sender.tab.id, {
         type: "errUrls",
         urls: errUrls
@@ -120,15 +143,105 @@ chrome.action.onClicked.addListener(async () => {
     }
 });
   
+// 抽象函数：当前页面域名是否存在
+function isKnownDomain(currentDomain) {
+    const knownDomains = Object.keys(DOMAIN_MAP);
+    return knownDomains.includes(currentDomain)
+}
+
+
 
 // 抽象函数：根据 DOMAIN_MAP 获取目标域名
-function getTargetDomain(currentDomain, clipDomain) {
-    const knownDomains = Object.keys(DOMAIN_MAP);
-    if (!clipDomain) return currentDomain;
-    if (knownDomains.includes(currentDomain)) {
-        return clipDomain === currentDomain ? DOMAIN_MAP[clipDomain] : currentDomain;
+
+// function getTargetDomain(currentDomain, clipDomain) {
+
+//     // 当前页面在映射表中
+//     if (isKnownDomain(currentDomain)) {
+//         // 如果剪贴板域名与当前域名相同，则跳到对应映射域
+//         if (clipDomain === currentDomain) return DOMAIN_MAP[clipDomain];
+//         // 否则保持当前域名
+//         return currentDomain;
+//     }
+//     // 当前页面不在映射表中，则按剪贴板域名找映射
+//     return DOMAIN_MAP[clipDomain] || clipDomain;
+// }
+
+function getTargetDomain(replaceDomain) {
+    return DOMAIN_MAP[replaceDomain]
+}
+
+// =============================
+// 🧩 构建最终跳转 URL
+// =============================
+/**
+ * 构建跳转 URL
+ * @param {string|null} currentDomain 当前页面域名
+ * @param {string} currentPath 当前页面路径（例如 "/index.html"）
+ * @param {string|null} clipDomain 剪贴板域名，如果是纯路径则为 null
+ * @param {string} clipPath 剪贴板路径或完整 URL 的路径，如果仅域名则为空
+ * @param {boolean} currentKnown 当前页面域名是否已知
+ * @param {string} protocol 协议，默认 https
+ * @returns {string} 最终跳转 URL
+ */
+function buildTargetUrl({ currentDomain, currentPath = "/", clipDomain, clipPath, currentKnown = false, protocol = "https:" }) {
+    // let targetDomain = getTargetDomain(currentDomain, clipDomain);
+    // // let targetDomain = "";
+    // let path = "/";
+
+    // if (clipPath) {
+    //     // 剪贴板内容包含路径（完整 URL 或仅路径）
+    //     path = clipPath;
+    // } else if (clipDomain && currentDomain && currentKnown) {
+    //     // 剪贴板仅域名 + 当前页面已知 → 使用当前页面路径
+    //     path = currentPath || "/";
+    // } else {
+    //     // 剩余情况（仅域名 + 页面为空或未知） → path 默认 "/"
+    //     path = "/";
+    // }
+    // return `${protocol}//${targetDomain}${path}`;
+
+    const hasPath = !!clipPath;       // 是否有路径
+    const hasDomain = !!clipDomain;   // 是否有域名
+    const isPurePath = !hasDomain && hasPath;
+
+    if (currentKnown) {
+        // 页面已知
+        if (hasDomain && hasPath) {
+            // 完整 URL → 替换为当前页面域名 + 剪贴板路径
+            return `${protocol}//${currentDomain}${clipPath}`;
+        } else if (isPurePath) {
+            // 仅路径 → 替换为当前页面域名 + 剪贴板路径
+            return `${protocol}//${currentDomain}${clipPath}`;
+        } else if (hasDomain && !hasPath) {
+            // 仅域名 → 替换为剪贴板域名 + 当前页面路径
+            if (currentPath !== '/'){
+                return `${protocol}//${clipDomain}${currentPath}`;
+            }else {
+                // 仅域名 + 当前页面路径为空 → 剪切板域名 替换为正式/测试域名，不拼接路径
+                const targetDomain = getTargetDomain(clipDomain);
+                return `${protocol}//${targetDomain}/`;
+            }
+        } else {
+            // 非法 → 无法跳转
+            return false;
+        }
     } else {
-        return DOMAIN_MAP[clipDomain] || clipDomain;
+        // 页面未知
+        if (hasDomain && hasPath) {
+            // 完整 URL → 剪切板域名 替换为正式/测试域名 + 剪贴板路径
+            const targetDomain = getTargetDomain(clipDomain);
+            return `${protocol}//${targetDomain}${clipPath}`;
+        } else if (isPurePath) {
+            // 仅路径 → 无法跳转
+            return false;
+        } else if (hasDomain && !hasPath) {
+            // 仅域名 → 剪切板域名 替换为正式/测试域名，不拼接路径
+            const targetDomain = getTargetDomain(clipDomain);
+            return `${protocol}//${targetDomain}/`;
+        } else {
+            // 非法 → 无法跳转
+            return false;
+        }
     }
 }
 
@@ -156,6 +269,7 @@ function isPurePath(str) {
     // 以 "/" 开头且不含空格、不含协议
     return (
       str.startsWith("/") &&
+      str.length > 1 &&
       !str.includes("://") &&
       !/\s/.test(str)
     );
