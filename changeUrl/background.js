@@ -23,7 +23,13 @@ chrome.action.onClicked.addListener(async () => {
     // bridge 页的作用是负责安全地调用 navigator.clipboard.readText()
     // 因为 background.js 无法直接访问剪贴板
     const pageUrl = chrome.runtime.getURL("clipboard.html");
-    const bridgeTab = await chrome.tabs.create({ url: pageUrl }); // 在新标签页打开
+    // const bridgeTab = await chrome.tabs.create({ url: pageUrl }); // 在新标签页打开
+    const bridgeTab = await chrome.tabs.create({  //   // ✅ 在当前标签页后打开 bridge 页
+        url: pageUrl,
+        active: true,
+        index: tab.index + 1
+    });
+
   
     // 3️⃣ 等待 clipboard.html 加载完成并发送 “ready” 信号
     // background 在收到“ready”后，才向其发送 “getClipboard” 指令
@@ -122,7 +128,12 @@ chrome.action.onClicked.addListener(async () => {
 
         // 如果总行数不超过10，则直接打开新标签
         if (lines.length <= 10) {
-            chrome.tabs.create({ url: targetUrl });
+            chrome.tabs.create({ 
+                url: targetUrl, 
+                active: true, 
+                index: sender.tab.index + 1  // 插入到 bridge 标签页后面
+            });
+            // chrome.tabs.create({ url: targetUrl });
         }
     }
     
