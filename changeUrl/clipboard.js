@@ -50,6 +50,46 @@ if (msg.type === "errUrls"){
 
 });
 
+// =============================
+// 🧩 一键复制按钮逻辑
+// =============================
+document.addEventListener("DOMContentLoaded", () => {
+    const btn = document.getElementById("copyAllBtn");
+    const tip = document.getElementById("copyTip");
+    if (!btn) return;
+  
+    btn.addEventListener("click", async () => {
+      const urls = [...document.querySelectorAll("#urlContainer a")]
+        .map(a => a.href)
+        .join("\n");
+  
+      if (!urls) {
+        // alert("没有可复制的 URL！");
+        tip.textContent = "没有可复制的 URL！";
+        tip.style.color = "red";
+        return;
+      }
+  
+      try {
+        await navigator.clipboard.writeText(urls);
+            // 显示提示
+        tip.textContent = "已复制所有 URL";
+        tip.style.color = "green";
+
+        // 3 秒后自动清除
+        setTimeout(() => {
+            tip.textContent = "";
+        }, 3000);
+        // alert("已复制所有 URL！");
+      } catch (err) {
+        // alert("复制失败：" + err);
+        tip.textContent = "复制失败：" + err;
+        tip.style.color = "red";
+      }
+    });
+  });
+
+
 
 // =============================
 // 🧩 工具函数：判断是否为完整 URL
