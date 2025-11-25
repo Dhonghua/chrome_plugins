@@ -1,0 +1,25 @@
+{
+    "manifest_version": 3,
+    "name": "openAllUrl",
+    "version": "1.6",
+    "description": "批量打开URL",
+    "permissions": ["tabs", "clipboardRead"],
+    "background": {
+        "service_worker": "background.js",
+        "type": "module"
+    },
+    "icons": {
+        "16": "icon48.png",
+        "48": "icon48.png",
+        "128": "icon48.png"
+    },
+    "action": {
+        "default_title": "批量打开"
+    },
+    "web_accessible_resources": [
+        {
+            "resources": ["clipboard.html", "clipboard.js"],
+            "matches": ["<all_urls>"]
+        }
+    ]
+}
