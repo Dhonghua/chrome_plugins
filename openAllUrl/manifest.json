@@ -3,6 +3,7 @@
     "name": "openAllUrl",
     "version": "1.6",
     "description": "批量打开URL",
+    "incognito": "split",
     "permissions": ["tabs", "clipboardRead"],
     "background": {
         "service_worker": "background.js",
