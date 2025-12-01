@@ -22,6 +22,11 @@ let errUrls = [];
 
 // 处理剪贴板内容
 function handleClipboard(text) {
+    // 如果有多个 http，则在每个 http 前增加换行（除了开头）
+    text = text.replace(/\r?\n/g, ""); // 先去掉已有换行
+    text = text.replace(/(https?:\/\/)/g, "\n$1");// 在每个 http 或 https 前加换行
+    text = text.replace(/^\n/, ""); // 去掉开头多余的换行
+    
     const lines = text.split(/\r?\n/).map(t => t.trim()).filter(Boolean);
 
     urlContainer.innerHTML = "";
@@ -128,3 +133,4 @@ openAllBtn.onclick = () => {
         openUrls(validUrls);
     }
 };
+
