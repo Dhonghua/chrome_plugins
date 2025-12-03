@@ -22,6 +22,7 @@ let errUrls = [];
 
 // 处理剪贴板内容
 function handleClipboard(text) {
+
     // 如果有多个 http，则在每个 http 前增加换行（除了开头）
     text = text.replace(/\r?\n/g, ""); // 先去掉已有换行
     text = text.replace(/(https?:\/\/)/g, "\n$1");// 在每个 http 或 https 前加换行
@@ -34,19 +35,21 @@ function handleClipboard(text) {
     errUrls = [];
 
     lines.forEach(line => {
-        if (isUrl(line)) {
-            validUrls.push(line);
-        } else {
-            errUrls.push(line);
-        }
-    });
+         if (isUrl(line)) {
+             validUrls.push(line); 
+            } 
+            else {
+                 errUrls.push(line); 
+                } 
+            });
+
 
     renderList();
     renderErrors();
     renderBatch();
 
-    // 自动打开 （≤30）
-    if (validUrls.length > 0 && validUrls.length <= 30) {
+    // 自动打开 （≤10）
+    if (validUrls.length > 0 && validUrls.length <= 10) {
         openUrls(validUrls);
         window.close(); 
     }
@@ -79,11 +82,11 @@ function renderErrors() {
     });
 }
 
-// 分批显示按钮（每批 30 条）
+// 分批显示按钮（每批 20 条）
 function renderBatch() {
     batchButtons.innerHTML = "";
 
-    if (validUrls.length <= 30) {
+    if (validUrls.length <= 20) {
         batchTitle.textContent = "";
         return;
     }
@@ -91,7 +94,7 @@ function renderBatch() {
     const total = validUrls.length;
     batchTitle.textContent = `共 ${total} 条 URL，分批打开：`;
 
-    const batchSize = 30;
+    const batchSize = 20;
     const batchCount = Math.ceil(total / batchSize);
 
     for (let i = 0; i < batchCount; i++) {
@@ -133,4 +136,3 @@ openAllBtn.onclick = () => {
         openUrls(validUrls);
     }
 };
-
