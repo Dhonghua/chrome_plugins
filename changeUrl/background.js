@@ -63,11 +63,9 @@ chrome.action.onClicked.addListener(async () => {
     const currentKnown = isKnownDomain(currentDomain)
     // 从消息中提取剪切板文本内容，按换行符拆分，多条 URL 或路径
 
-    // 如果有多个 http，则在每个 http 前增加换行（除了开头）
-    msg.text = msg.text.replace(/\r?\n/g, ""); // 先去掉已有换行
-    msg.text = msg.text.replace(/(https?:\/\/)/g, "\n$1");// 在每个 http 或 https 前加换行
+    msg.text = msg.text.replace(/\r\n|\r/g, "\n");// 把各种换行统一为 \n，而不是删除
+    msg.text = msg.text.replace(/([^\n])(https?:\/\/)/g, "$1\n$2"); //在 http 之前补换行（但避免一行里已经是换行的情况）
     msg.text = msg.text.replace(/^\n/, ""); // 去掉开头多余的换行
-    
     const lines = msg.text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
     // 用于存储处理后的 URL
     const processedUrls = [];
@@ -184,7 +182,7 @@ function isKnownDomain(currentDomain) {
 // }
 
 function getTargetDomain(replaceDomain) {
-    return DOMAIN_MAP[replaceDomain]
+    return DOMAIN_MAP[replaceDomain]|| replaceDomain
 }
 
 // =============================
