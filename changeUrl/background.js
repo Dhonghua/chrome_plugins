@@ -62,7 +62,7 @@ chrome.action.onClicked.addListener(async () => {
     const currentPath = msg.currentPath;
     const currentKnown = isKnownDomain(currentDomain)
     // 从消息中提取剪切板文本内容，按换行符拆分，多条 URL 或路径
-
+    
     msg.text = msg.text.replace(/\r\n|\r/g, "\n");// 把各种换行统一为 \n，而不是删除
     msg.text = msg.text.replace(/([^\n])(https?:\/\/)/g, "$1\n$2"); //在 http 之前补换行（但避免一行里已经是换行的情况）
     msg.text = msg.text.replace(/^\n/, ""); // 去掉开头多余的换行
@@ -79,8 +79,6 @@ chrome.action.onClicked.addListener(async () => {
         // 尝试将剪贴板内容解析为 URL
         // 如果无效（非 URL），则弹窗提示并中止
 
-        // 给裸域名补 https://
-        // const clipText = line.includes("://") ? line : `https://${line}`;
         const clipText = line
         // 判断是否为URL
         if (isUrl(clipText)){
@@ -104,16 +102,6 @@ chrome.action.onClicked.addListener(async () => {
                 continue;
             }
 
-        
-    
-        // =========================================================
-        // ✨ 构造最终跳转 URL
-        // =========================================================
-        // 使用原始协议 + 新域名 + 路径参数
-        // const targetDomain = getTargetDomain(currentDomain, clipDomain);
-        // const targetUrl = `https://${targetDomain}${clipPath}`;
-        // processedUrls.push(targetUrl);
-
         const targetUrl = buildTargetUrl({ currentDomain,currentPath, clipDomain, clipPath ,currentKnown});
 
         if (targetUrl) {
@@ -125,10 +113,6 @@ chrome.action.onClicked.addListener(async () => {
             errUrls.push(clipText);
             continue;
         }
-    
-        // 在当前 bridge 标签页中直接更新 URL，实现无感跳转
-        // chrome.tabs.update(sender.tab.id, { url: targetUrl });
-        // chrome.tabs.create({ url: targetUrl });
 
         // 如果总行数不超过10，则直接打开新标签
         if (lines.length <= 10) {
@@ -167,20 +151,6 @@ function isKnownDomain(currentDomain) {
 
 
 // 抽象函数：根据 DOMAIN_MAP 获取目标域名
-
-// function getTargetDomain(currentDomain, clipDomain) {
-
-//     // 当前页面在映射表中
-//     if (isKnownDomain(currentDomain)) {
-//         // 如果剪贴板域名与当前域名相同，则跳到对应映射域
-//         if (clipDomain === currentDomain) return DOMAIN_MAP[clipDomain];
-//         // 否则保持当前域名
-//         return currentDomain;
-//     }
-//     // 当前页面不在映射表中，则按剪贴板域名找映射
-//     return DOMAIN_MAP[clipDomain] || clipDomain;
-// }
-
 function getTargetDomain(replaceDomain) {
     return DOMAIN_MAP[replaceDomain]|| replaceDomain
 }
@@ -199,21 +169,6 @@ function getTargetDomain(replaceDomain) {
  * @returns {string} 最终跳转 URL
  */
 function buildTargetUrl({ currentDomain, currentPath = "/", clipDomain, clipPath, currentKnown = false, protocol = "https:" }) {
-    // let targetDomain = getTargetDomain(currentDomain, clipDomain);
-    // // let targetDomain = "";
-    // let path = "/";
-
-    // if (clipPath) {
-    //     // 剪贴板内容包含路径（完整 URL 或仅路径）
-    //     path = clipPath;
-    // } else if (clipDomain && currentDomain && currentKnown) {
-    //     // 剪贴板仅域名 + 当前页面已知 → 使用当前页面路径
-    //     path = currentPath || "/";
-    // } else {
-    //     // 剩余情况（仅域名 + 页面为空或未知） → path 默认 "/"
-    //     path = "/";
-    // }
-    // return `${protocol}//${targetDomain}${path}`;
 
     const hasPath = !!clipPath;       // 是否有路径
     const hasDomain = !!clipDomain;   // 是否有域名
@@ -228,8 +183,8 @@ function buildTargetUrl({ currentDomain, currentPath = "/", clipDomain, clipPath
             // 仅路径 → 替换为当前页面域名 + 剪贴板路径
             return `${protocol}//${currentDomain}${clipPath}`;
         } else if (hasDomain && !hasPath) {
-            // 仅域名 → 替换为剪贴板域名 + 当前页面路径
             if (currentPath !== '/'){
+                // 仅域名 → 替换为剪贴板域名 + 当前页面路径
                 return `${protocol}//${clipDomain}${currentPath}`;
             }else {
                 // 仅域名 + 当前页面路径为空 → 剪切板域名 替换为正式/测试域名，不拼接路径
