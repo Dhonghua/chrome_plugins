@@ -6,7 +6,7 @@
 // 作用：实现测试环境和正式环境的域名互相跳转映射
 // 你可以在这里添加任意域名映射对
 
-export const DOMAIN_MAP = {
+export const domainMap = {
 "www.ifonelab.net":"www.imyfone.com",
 "www.imyfone.com":"www.ifonelab.net",
 "cms-tw.ifonelab.net":"tw.imyfone.com",

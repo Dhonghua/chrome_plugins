@@ -1,4 +1,4 @@
-import { DOMAIN_MAP } from "./domainMap.js";
+import { domainMap } from "./domainMap.js";
 
 // background.js
 // =========================================================
@@ -144,15 +144,15 @@ chrome.action.onClicked.addListener(async () => {
   
 // 抽象函数：当前页面域名是否存在
 function isKnownDomain(currentDomain) {
-    const knownDomains = Object.keys(DOMAIN_MAP);
+    const knownDomains = Object.keys(domainMap);
     return knownDomains.includes(currentDomain)
 }
 
 
 
-// 抽象函数：根据 DOMAIN_MAP 获取目标域名
+// 抽象函数：根据 domainMap 获取目标域名
 function getTargetDomain(replaceDomain) {
-    return DOMAIN_MAP[replaceDomain]|| replaceDomain
+    return domainMap[replaceDomain]|| replaceDomain
 }
 
 // =============================
